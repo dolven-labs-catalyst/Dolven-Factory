@@ -1,3 +1,9 @@
+
+#       ___       __                __        __
+#      / _ \___  / /  _____ ___    / /  ___ _/ /  ___
+#     / // / _ \/ / |/ / -_) _ \  / /__/ _ `/ _ \(_-<
+#    /____/\___/_/|___/\__/_//_/ /____/\_,_/_.__/___/
+
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin

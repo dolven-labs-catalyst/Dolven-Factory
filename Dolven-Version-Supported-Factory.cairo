@@ -5,6 +5,7 @@
 #    /____/\___/_/|___/\__/_//_/ /____/\_,_/_.__/___/
 
 %lang starknet
+%lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.uint256 import Uint256
@@ -17,6 +18,10 @@ from openzeppelin.access.ownable import Ownable
 
 @storage_var
 func versions(category : felt, version : felt) -> (class_hash : felt):
+end
+
+@storage_var
+func deployedContracts(category : felt, nonce : felt) -> (contract_address : felt):
 end
 
 # Category 1 -> Deploys Vault
@@ -61,6 +66,14 @@ end
 # # Getters
 
 @view
+func get_deployed_contracts{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    category : felt
+) -> (addresses_len : felt, addresses : felt*):
+    let (addresses_len, addresses) = recursiveContractAddresses(0, category)
+    return (addresses_len, addresses - addresses_len)
+end
+
+@view
 func get_deployer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
     deployer : felt
 ):
@@ -103,6 +116,7 @@ func deployVaultContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
     _poolTokenAmount : felt,
     _limitForTicket : felt,
     _isFarming : felt,
+    version : felt,
 ):
     alloc_locals
     Ownable.assert_only_owner()
@@ -120,7 +134,7 @@ func deployVaultContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
 
     let _salt : felt = salt.read()
     let _lastVersion : felt = last_version_by_category.read(1)
-    let _classHash : felt = versions.read(1, _lastVersion)
+    let _classHash : felt = versions.read(1, version)
 
     let (new_contract_address : felt) = deploy(
         class_hash=_classHash,
@@ -128,6 +142,7 @@ func deployVaultContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
         constructor_calldata_size=8,
         constructor_calldata=call_data_array,
     )
+    deployedContracts.write(1, _lastVersion, new_contract_address)
     contracts_by_category.write(1, new_contract_address)
     let (time) = get_block_timestamp()
     last_version_by_category.write(1, _lastVersion + 1)
@@ -138,7 +153,7 @@ end
 
 @external
 func deployVestingContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    _saleToken : felt
+    _saleToken : felt, version : felt
 ):
     alloc_locals
     Ownable.assert_only_owner()
@@ -150,7 +165,7 @@ func deployVestingContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ran
 
     let _salt : felt = salt.read()
     let _lastVersion : felt = last_version_by_category.read(2)
-    let _classHash : felt = versions.read(2, _lastVersion)
+    let _classHash : felt = versions.read(2, version)
 
     let (new_contract_address : felt) = deploy(
         class_hash=_classHash,
@@ -158,6 +173,7 @@ func deployVestingContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ran
         constructor_calldata_size=2,
         constructor_calldata=call_data_array,
     )
+    deployedContracts.write(2, _lastVersion, new_contract_address)
     contracts_by_category.write(2, new_contract_address)
     let (time) = get_block_timestamp()
     last_version_by_category.write(2, _lastVersion + 1)
@@ -168,7 +184,7 @@ end
 
 @external
 func deployUnstakerContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token_address_ : felt, staking_contract_address_ : felt
+    token_address_ : felt, staking_contract_address_ : felt, version : felt
 ):
     alloc_locals
     Ownable.assert_only_owner()
@@ -181,7 +197,7 @@ func deployUnstakerContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ra
 
     let _salt : felt = salt.read()
     let _lastVersion : felt = last_version_by_category.read(3)
-    let _classHash : felt = versions.read(3, _lastVersion)
+    let _classHash : felt = versions.read(3, version)
 
     let (new_contract_address : felt) = deploy(
         class_hash=_classHash,
@@ -189,6 +205,7 @@ func deployUnstakerContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ra
         constructor_calldata_size=3,
         constructor_calldata=call_data_array,
     )
+    deployedContracts.write(3, _lastVersion, new_contract_address)
     contracts_by_category.write(3, new_contract_address)
     let (time) = get_block_timestamp()
     last_version_by_category.write(3, _lastVersion + 1)
@@ -196,3 +213,24 @@ func deployUnstakerContract{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ra
     Created.emit(new_contract_address, 3, time)
     return ()
 end
+
+# # Internal Functions
+
+func recursiveContractAddresses{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    address_nonce : felt, category : felt
+) -> (addresses_len : felt, addresses : felt*):
+    alloc_locals
+    let addressCount : felt = last_version_by_category.read(category)
+    let contract_address : felt = deployedContracts.read(2, address_nonce)
+    if addressCount == address_nonce:
+        let (found_addresses : felt*) = alloc()
+        return (0, found_addresses)
+    end
+
+    let (
+        address_memory_location_len, addresss_memory_location : felt*
+    ) = recursiveContractAddresses(address_nonce + 1, category)
+    assert [address_memory_location_len] = contract_address
+    return (address_memory_location_len + 1, addresss_memory_location + 1)
+end
+

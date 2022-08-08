@@ -18,6 +18,6 @@ Dolven Labs is a DAO Based Ecosystem Catalyst for projects built on the StarkNet
 
 ## To do list
 
-- [] Recursive versions list
-- [] Multi version support
+- [x] Recursive versions list
+- [x] Multi version support
 - [] Completing tests

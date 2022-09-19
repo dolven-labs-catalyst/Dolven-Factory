@@ -3,8 +3,6 @@
 #      / _ \___  / /  _____ ___    / /  ___ _/ /  ___
 #     / // / _ \/ / |/ / -_) _ \  / /__/ _ `/ _ \(_-<
 #    /____/\___/_/|___/\__/_//_/ /____/\_,_/_.__/___/
-
-%lang starknet
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
@@ -230,7 +228,7 @@ func recursiveContractAddresses{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*
     let (
         address_memory_location_len, addresss_memory_location : felt*
     ) = recursiveContractAddresses(address_nonce + 1, category)
-    assert [address_memory_location_len] = contract_address
+    assert [addresss_memory_location] = contract_address
     return (address_memory_location_len + 1, addresss_memory_location + 1)
 end
 
